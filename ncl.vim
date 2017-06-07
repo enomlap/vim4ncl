@@ -1,74 +1,65 @@
-" Vim syntax file
-" Language:	NCL
-" Author: Kevin Mueller
+" Vim indent file
+" Language:	    NCL Script
+" Maintainer:	Zuohj <@.org>
+" URL:		    ---
+" Latest Revision:  2017-05-02
+" arch-tag:	    ---
 
-" For version 5.x: Clear all syntax items
-" For version 6.x: Quit when a syntax file was already loaded
-if version < 600
-  syntax clear
-elseif exists("b:current_syntax")
+" Only load this indent file when no other was loaded.
+if exists("b:did_indent")
   finish
 endif
 
-syn case ignore
+let b:did_indent = 1
+let b:follow=0
 
-" ncl keywords
-syn keyword nclStatement	begin end break continue stop
-syn keyword nclStatement    return load
-syn keyword nclStatement    defaultapp external graphic local 
-syn keyword nclStatement    load create new noparent quit Quit QUIT
-syn keyword nclRepeat       do while
-syn keyword nclConditional	if else then
-syn keyword nclStatement	procedure function getvalues setvalues nextgroup=nclFunction skipwhite
-syn match   nclFunction	"[a-zA-Z_][a-zA-Z0-9_]*" contained
+setlocal indentexpr=GetNCLIndent()
+setlocal indentkeys+==then,=do,=else,=elif,=esac,=fi,=fin,=fil,=done
+setlocal indentkeys-=:,0#
 
-syn keyword nclType byte character double float logical integer
-syn keyword nclType long numeric record file short string
-
-" ncl numbers (ripped off from  fortran.vim)
-syn match nclNumber	display "\<\d\+\(_\a\w*\)\=\>"
-syn match nclNumber	display	"\<\d\+[deq][-+]\=\d\+\(_\a\w*\)\=\>"
-syn match nclNumber	display	"\.\d\+\([deq][-+]\=\d\+\)\=\(_\a\w*\)\=\>"
-syn match nclNumber	display	"\<\d\+\.\([deq][-+]\=\d\+\)\=\(_\a\w*\)\=\>"
-syn match nclNumber	display	"\<\d\+\.\d\+\([dq][-+]\=\d\+\)\=\(_\a\w*\)\=\>"
-syn match nclNumber	display	"\<\d\+\.\d\+\(e[-+]\=\d\+\)\=\(_\a\w*\)\=\>"
-
-
-syn match nclBoolean	"\.\s*\(True\|False\)\s*\."
-
-" pattern matching for comments
-syn match   nclComment	"^\ *;.*$"
-syn match   nclComment    ";.*"
-
-" pattern matching for strings
-syn region  nclString		start=+"+  end=+"+
-
-" Define the default highlighting.
-" For version 5.7 and earlier: only when not done already
-" For version 5.8 and later: only when an item doesn't have highlighting yet
-if version >= 508 || !exists("did_ncl_syn_inits")
-  if version < 508
-    let did_ncl_syn_inits = 1
-    command -nargs=+ HiLink hi link <args>
-  else
-    command -nargs=+ HiLink hi def link <args>
-  endif
-
-  HiLink nclConditional	Conditional
-  HiLink nclRepeat      Repeat
-  HiLink nclNumber		Number
-  HiLink nclBoolean     Boolean
-  HiLink nclStatement	Statement
-  HiLink nclFunction    Function
-  HiLink nclComment		Comment
-  HiLink nclString		String
-  HiLink nclOperator    Operator
-  HiLink nclType        Type
-
-  delcommand HiLink
+" Only define the function once.
+if exists("*GetNCLIndent")
+  finish
 endif
 
-let b:current_syntax = "ncl"
-map <Leader>c <Esc>:%s/\s*=\s*/=/g<CR>\| :%s/\s*,\s*/,/g<CR>\| :%s/\s*;\s*/; /g<CR>
+set cpoptions-=C
 
-" vim: ts=8
+function GetNCLIndent()
+  " Find a non-blank line above the current line.
+  let lnum = prevnonblank(v:lnum - 1)
+
+  " Hit the start of the file, use zero indent.
+  if lnum == 0
+    return 0
+  endif
+
+  " Add a 'shiftwidth' after if, while, else, case, until, for, function()
+  " Skip if the line also contains the closure for the above
+  let ind = indent(lnum)
+  let line = getline(lnum)
+	if (line =~ '^\s*\(begin\|if\|then\|do\|else\)\>')
+		\ || (line =~'\<semi-\(if\|do\)\s*$')
+		let ind = ind + &sw
+	endif
+
+	" Subtract a 'shiftwidth' on a then, do, else, done
+	" Retain the indentation level if line matches fin (for find)
+	let line = getline(v:lnum)
+	let lastline=getline(prevnonblank(v:lnum -1))
+	if (line =~ '^\s*\(end\|else\|\(end\s*\(do\|if\)\)\)\>')
+		\ && (lastline !~ '^\s*\(end\s*if\)\>')
+	"if (line =~ '^\s*\(end\|else\|\(end\s*\(do\|if\)\)\)\>')
+		"	\ && line !~ '^\s*fi[ln]\>'
+		let ind = ind - &sw
+		"if (line =~ '^\s*\(end\s*if\)\>' && b:inCombineIFELSE > 0)
+		if (line =~ '^\s*\(else\s*if\)\>')
+			let b:follow=1
+		else
+			let b:follow=0
+		endif
+	endif
+
+	return ind
+endfunction
+
+" vim: set sts=2 sw=2:
